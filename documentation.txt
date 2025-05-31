@@ -1,0 +1,749 @@
+DOCUMENTATION COMPLÈTE DU PROJET WORKOUT HISTORY
+==============================================
+
+1. STRUCTURE DES FICHIERS
+------------------------
+server.js : Serveur backend
+auth.js : Gestion de l'authentification
+script.js : Logique du calendrier
+style.css : Styles de l'application
+workouts.html : Page principale
+index.html : Page d'accueil
+conseils.html : Page des conseils
+
+2. DÉTAIL DE CHAQUE FICHIER
+---------------------------
+
+SERVER.JS
+---------
+RÔLE : Serveur principal de l'application
+
+IMPORTS :
+- express : Framework web Node.js
+- mysql2 : Connexion base de données
+- cors : Sécurité des requêtes
+- bcrypt : Hachage des mots de passe
+- jwt : Gestion des tokens
+
+CONFIGURATION BASE DE DONNÉES :
+- Host : Variable d'environnement DB_HOST
+- User : Variable d'environnement DB_USER
+- Password : Variable d'environnement DB_PASSWORD
+- Database : Variable d'environnement DB_NAME
+
+ROUTES PRINCIPALES :
+1. /api/auth/register
+   - Méthode : POST
+   - Rôle : Inscription utilisateur
+   - Données : username, email, password
+   - Retour : Token JWT
+
+2. /api/auth/login
+   - Méthode : POST
+   - Rôle : Connexion utilisateur
+   - Données : email, password
+   - Retour : Token JWT
+
+3. /api/seances
+   - Méthode : GET
+   - Rôle : Récupérer les séances
+   - Sécurité : Token JWT requis
+   - Retour : Liste des séances
+
+4. /api/seances
+   - Méthode : POST
+   - Rôle : Ajouter une séance
+   - Données : date, type, contenu
+   - Sécurité : Token JWT requis
+
+AUTH.JS
+-------
+RÔLE : Gestion de l'authentification côté client
+
+MÉTHODES PRINCIPALES :
+1. isAuthenticated()
+   - Vérifie si un token existe
+   - Retourne true/false
+
+2. login(email, password)
+   - Envoie requête au serveur
+   - Stocke le token reçu
+   - Gère les erreurs
+
+3. logout()
+   - Supprime le token
+   - Redirige vers l'accueil
+
+4. checkAuth()
+   - Middleware de vérification
+   - Redirige si non authentifié
+
+SCRIPT.JS
+---------
+RÔLE : Gestion du calendrier et des séances
+
+CLASSE CALENDAR :
+1. Constructor
+   - Initialise la date actuelle
+   - Crée Map pour les séances
+   - Configure les événements
+
+2. renderCalendar()
+   - Affiche le mois actuel
+   - Gère les jours précédents/suivants
+   - Affiche les séances
+
+3. updateCalendar(workouts)
+   - Met à jour les séances
+   - Recalcule les statistiques
+   - Rafraîchit l'affichage
+
+STYLE.CSS
+---------
+ORGANISATION :
+1. Variables globales
+   - Couleurs principales
+   - Tailles de police
+   - Espacements
+
+2. Layout
+   - Grid pour le calendrier
+   - Flexbox pour la navigation
+   - Responsive design
+
+3. Composants
+   - Boutons
+   - Formulaires
+   - Cartes de séances
+
+WORKOUTS.HTML
+------------
+STRUCTURE :
+1. Navigation
+   - Menu responsive
+   - Liens dynamiques
+   - État de connexion
+
+2. Calendrier
+   - Grille des jours
+   - Navigation mois
+   - Affichage séances
+
+3. Formulaire d'ajout
+   - Sélection date
+   - Type de séance
+   - Description
+
+BASE DE DONNÉES
+--------------
+TABLES :
+1. users
+   - id (PRIMARY KEY)
+   - username
+   - email (UNIQUE)
+   - password_hash
+   - is_admin
+
+2. seances
+   - id (PRIMARY KEY)
+   - utilisateur_id (FOREIGN KEY)
+   - date_seance
+   - creneau
+   - type
+   - contenu
+
+3. conseils
+   - id (PRIMARY KEY)
+   - type
+   - titre
+   - contenu
+   - date_publication
+
+DÉPLOIEMENT
+-----------
+VERCEL :
+1. Configuration
+   - vercel.json pour les routes
+   - Variables d'environnement
+   - Build commands
+
+2. Base de données
+   - Hébergée sur Railway/PlanetScale
+   - Configuration SSL
+   - Variables de connexion
+
+3. Sécurité
+   - CORS configuré
+   - Tokens JWT
+   - Hachage des mots de passe 
+
+EXPLICATIONS COMPLÈTES DU CODE - WORKOUT HISTORY
+==============================================
+
+SOMMAIRE
+--------
+1. server.js - Le serveur
+2. auth.js - L'authentification
+3. script.js - Le calendrier
+4. style.css - Le style
+5. HTML - Les pages
+6. Configuration - package.json et vercel.json
+
+1. SERVER.JS - LE SERVEUR
+-------------------------
+
+IMPORTS ET CONFIGURATION
+-----------------------
+require('dotenv').config();
+→ Charge les variables secrètes du fichier .env
+→ POURQUOI : Pour ne pas mettre les mots de passe dans le code
+
+const express = require('express');
+→ Charge Express, notre serveur web
+→ POURQUOI : Pour créer un serveur qui répond aux demandes
+
+const mysql = require('mysql2');
+→ Connecteur pour la base de données
+→ POURQUOI : Pour parler avec MySQL, plus rapide que mysql normal
+
+const cors = require('cors');
+→ Sécurité pour les requêtes
+→ POURQUOI : Permet à notre site de parler avec le serveur
+
+const bcrypt = require('bcrypt');
+→ Outil de cryptage des mots de passe
+→ POURQUOI : Pour que même nous ne puissions pas voir les mots de passe
+
+const jwt = require('jsonwebtoken');
+→ Crée des "badges" d'identification
+→ POURQUOI : Pour identifier les utilisateurs connectés
+
+CONFIGURATION BASE DE DONNÉES
+---------------------------
+const db = mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT
+});
+→ Configure la connexion à MySQL
+→ Utilise les variables du fichier .env
+→ POURQUOI : Pour se connecter de manière sécurisée
+
+MIDDLEWARE (Les assistants du serveur)
+------------------------------------
+app.use(cors());
+→ Active la sécurité CORS
+→ POURQUOI : Protège contre les attaques
+
+app.use(express.json());
+→ Permet de lire les données JSON
+→ POURQUOI : Pour comprendre ce que le client envoie
+
+ROUTES D'AUTHENTIFICATION
+------------------------
+app.post('/api/auth/register', async (req, res) => {
+    const { username, email, password } = req.body;
+    // ...
+});
+→ Route d'inscription
+→ Reçoit : nom, email, mot de passe
+→ Crypte le mot de passe
+→ Crée un nouveau compte
+
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    // ...
+});
+→ Route de connexion
+→ Vérifie l'email et le mot de passe
+→ Donne un "badge" (token) si correct
+
+ROUTES DES SÉANCES
+-----------------
+app.get('/api/seances', auth, (req, res) => {
+    // ...
+});
+→ Récupère toutes les séances d'un utilisateur
+→ auth vérifie le "badge" avant d'autoriser
+
+app.post('/api/seances', auth, (req, res) => {
+    // ...
+});
+→ Ajoute une nouvelle séance
+→ Vérifie aussi le "badge"
+
+2. AUTH.JS - GESTION DE L'AUTHENTIFICATION
+----------------------------------------
+
+CLASSE AUTH
+-----------
+class Auth {
+    static isAuthenticated() {
+        return localStorage.getItem('userToken') !== null;
+    }
+}
+→ C'est comme un gardien qui vérifie les badges
+→ localStorage : C'est la poche où on garde notre badge
+→ POURQUOI : Pour savoir si quelqu'un est connecté
+
+MÉTHODES PRINCIPALES
+-------------------
+static getToken() {
+    return localStorage.getItem('userToken');
+}
+→ Va chercher notre badge dans la poche
+→ POURQUOI : Pour prouver qui on est au serveur
+
+static logout() {
+    localStorage.removeItem('userToken');
+    window.location.href = '/';
+}
+→ Jette notre badge et retourne à l'accueil
+→ POURQUOI : Pour se déconnecter proprement
+
+static async register(username, email, password) {
+    const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+    });
+}
+→ Envoie nos infos au serveur pour créer un compte
+→ fetch : Comme envoyer une lettre
+→ JSON.stringify : Met nos infos dans une enveloppe
+→ POURQUOI : Pour créer un nouveau compte
+
+static async login(email, password) {
+    // Similaire à register mais pour se connecter
+}
+→ Vérifie si on peut entrer
+→ POURQUOI : Pour se connecter avec un compte existant
+
+AUTHENTIFICATION - EXPLICATIONS DÉTAILLÉES
+----------------------------------------
+
+1. TOKENS JWT (JSON Web Tokens)
+-----------------------------
+→ Un token JWT, c'est comme une carte d'identité numérique qui contient :
+  - L'ID de l'utilisateur
+  - La date d'expiration
+  - D'autres informations importantes
+
+→ Exemple concret :
+  Quand tu te connectes à Gmail sur ton téléphone, Google te donne un "token".
+  C'est comme si le vigile d'une boîte te donnait un bracelet : 
+  - Tu le montres pour prouver que tu as payé
+  - Il contient ton numéro de client
+  - Il a une date d'expiration
+
+→ Structure d'un token JWT :
+  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEyMzR9.qwertyuiop
+  - Première partie : Comment le token est crypté
+  - Deuxième partie : Les informations (ID, etc.)
+  - Troisième partie : La signature qui prouve que c'est vrai
+
+2. BCRYPT (Hachage des mots de passe)
+-----------------------------------
+const hashedPassword = await bcrypt.hash(password, 10);
+
+→ Imagine que ton mot de passe est "Chat123"
+→ bcrypt va le transformer en quelque chose comme :
+  "$2b$10$X9oqw8zMp7UJ6z1v2K3Qz.9v2K3Qz9v2K3Qz"
+
+→ Pourquoi on fait ça ?
+  - Même si un hacker vole la base de données
+  - Il ne peut pas voir les vrais mots de passe
+  - C'est comme mettre ton mot de passe dans un broyeur
+  - Impossible de reconstruire le mot de passe original
+
+→ Le nombre 10 signifie :
+  - Combien de fois on "mélange" le mot de passe
+  - Plus le nombre est grand, plus c'est sécurisé
+  - Mais plus c'est lent
+
+3. SCRIPT.JS - LE CALENDRIER
+---------------------------
+
+CLASSE CALENDAR
+--------------
+constructor() {
+    this.currentDate = new Date();
+    this.workouts = new Map();
+    this.monthDisplay = document.getElementById('currentMonth');
+    this.calendarDays = document.getElementById('calendarDays');
+}
+→ currentDate : La date d'aujourd'hui
+→ workouts : Une boîte pour ranger les séances
+→ monthDisplay : L'endroit où on affiche le mois
+→ POURQUOI : Pour préparer notre calendrier
+
+renderCalendar() {
+    const year = this.currentDate.getFullYear();
+    const month = this.currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+}
+→ Calcule tous les jours du mois
+→ firstDay : Premier jour du mois
+→ lastDay : Dernier jour du mois
+→ POURQUOI : Pour afficher le calendrier correctement
+
+updateCalendar(workouts) {
+    this.workouts = new Map();
+    workouts.forEach(workout => {
+        const dateKey = workout.date_seance;
+        if (!this.workouts.has(dateKey)) {
+            this.workouts.set(dateKey, []);
+        }
+        this.workouts.get(dateKey).push(workout);
+    });
+}
+→ Range les séances dans les bonnes cases
+→ Map : Comme un grand classeur avec des onglets (dates)
+→ POURQUOI : Pour organiser les séances par date
+
+4. STYLE.CSS - LE STYLE
+----------------------
+
+VARIABLES GLOBALES
+-----------------
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #16a34a;
+    --text-color: #1a1a1a;
+    --background-color: #ffffff;
+}
+→ Définit les couleurs principales
+→ POURQUOI : Pour changer facilement les couleurs partout
+
+LAYOUT GÉNÉRAL
+-------------
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+→ Crée une grille de 7 colonnes
+→ POURQUOI : Pour aligner les jours de la semaine
+
+COMPOSANTS DU CALENDRIER
+-----------------------
+.calendar-day {
+    border: 1px solid #e5e7eb;
+    padding: 10px;
+    min-height: 100px;
+}
+→ Chaque case du calendrier
+→ border : Dessine un cadre autour
+→ min-height : Hauteur minimum pour voir les séances
+
+.workout-slot {
+    height: 20px;
+    margin: 2px 0;
+    border-radius: 4px;
+    cursor: pointer;
+}
+→ Les créneaux de séances dans chaque jour
+→ height : Taille fixe pour être uniforme
+→ cursor: pointer : Montre qu'on peut cliquer
+
+STATISTIQUES
+-----------
+.stats-container {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+→ Conteneur des statistiques en haut
+→ flex : Aligne les stats côte à côte
+→ gap : Espace entre chaque stat
+
+.stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+→ Chaque carte de statistique
+→ box-shadow : Ajoute une ombre pour le relief
+
+5. HTML - LES PAGES
+------------------
+
+INDEX.HTML
+----------
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout History</title>
+</head>
+→ Structure de base de toute page HTML
+→ viewport : Pour que ça marche sur mobile
+→ charset : Pour les accents et caractères spéciaux
+
+NAVIGATION
+----------
+<nav>
+    <ul>
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="workouts.html">Mes Séances</a></li>
+    </ul>
+</nav>
+→ Menu de navigation
+→ ul/li : Liste des liens
+→ href : Où on va quand on clique
+
+FORMULAIRE D'AJOUT
+-----------------
+<form id="addWorkoutForm">
+    <div class="form-group">
+        <label for="date">Date</label>
+        <input type="date" id="date" required>
+    </div>
+    <div class="form-group">
+        <label for="type">Type</label>
+        <select id="type">
+            <option value="sport">Sport</option>
+            <option value="travail">Études</option>
+        </select>
+    </div>
+</form>
+→ Formulaire pour ajouter une séance
+→ required : Champs obligatoires
+→ select : Menu déroulant pour choisir
+
+6. CONFIGURATION
+---------------
+
+PACKAGE.JSON
+-----------
+{
+    "name": "workout-history",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "node server.js",
+        "build": "npm install"
+    }
+}
+→ Carte d'identité du projet
+→ scripts : Commandes pour démarrer/construire
+→ dependencies : Liste des outils nécessaires
+
+VERCEL.JSON
+----------
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "server.js",
+            "use": "@vercel/node"
+        }
+    ]
+}
+→ Configuration pour le déploiement
+→ builds : Dit à Vercel quoi démarrer
+→ routes : Comment gérer les URLs
+
+7. SYSTÈME DE CONSEILS
+---------------------
+
+SCRAPING DES CONSEILS
+--------------------
+async function scrapeAndSave() {
+    try {
+        for (const type of ['sport', 'travail']) {
+            for (const source of sources[type]) {
+                const response = await axios.get(source.url);
+                const $ = cheerio.load(response.data);
+            }
+        }
+    }
+}
+→ Va chercher des conseils sur internet
+→ axios : Pour télécharger les pages web
+→ cheerio : Pour extraire les infos utiles
+
+TRAITEMENT DES CONSEILS
+----------------------
+$(source.selector).each((i, element) => {
+    if (i < 2) {
+        const titre = $(element).find(source.titleSelector).text().trim();
+        const contenu = $(element).find(source.contentSelector).text().trim();
+    }
+});
+→ Parcourt les conseils trouvés sur le site
+→ i < 2 : Prend seulement les 2 premiers conseils
+→ trim() : Enlève les espaces inutiles
+
+SAUVEGARDE EN BASE DE DONNÉES
+----------------------------
+const sql = `
+    INSERT INTO conseils 
+    (date_publication, type, titre, contenu, source, auteur) 
+    VALUES (CURDATE(), ?, ?, ?, ?, ?)
+`;
+→ Prépare la commande pour sauvegarder
+→ CURDATE() : Met la date d'aujourd'hui
+→ ? : Emplacements pour nos données
+
+8. GESTION DES ERREURS
+---------------------
+
+CÔTÉ SERVEUR
+-----------
+try {
+    // Code qui peut avoir des erreurs
+} catch (error) {
+    console.error('Description de l'erreur:', error);
+    res.status(500).json({ error: 'Message pour l'utilisateur' });
+}
+→ try : Essaie d'exécuter le code
+→ catch : Attrape les erreurs s'il y en a
+→ status(500) : Dit que c'est une erreur serveur
+
+CÔTÉ CLIENT
+----------
+fetch('/api/seances')
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Problème avec la requête');
+        }
+        return response.json();
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Impossible de charger les séances');
+    });
+→ then : Si tout va bien
+→ catch : Si quelque chose ne marche pas
+→ alert : Prévient l'utilisateur
+
+9. SÉCURITÉ
+-----------
+
+HACHAGE DES MOTS DE PASSE
+------------------------
+const hashedPassword = await bcrypt.hash(password, 10);
+→ Transforme le mot de passe en code secret
+→ 10 tours de cryptage pour plus de sécurité
+
+VÉRIFICATION DU MOT DE PASSE
+---------------------------
+const match = await bcrypt.compare(password, user.password_hash);
+→ Compare le mot de passe entré avec celui stocké
+→ Renvoie true si c'est le bon mot de passe
+
+PROTECTION DES ROUTES
+-------------------
+function auth(req, res, next) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ error: 'Non autorisé' });
+    }
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+        next();
+    } catch (error) {
+        res.status(401).json({ error: 'Token invalide' });
+    }
+}
+→ Vérifie le badge (token) de l'utilisateur
+→ Extrait l'ID de l'utilisateur du token
+→ Laisse passer si tout est bon
+
+10. DÉPLOIEMENT VERCEL
+---------------------
+
+VARIABLES D'ENVIRONNEMENT
+-----------------------
+DB_HOST=...
+DB_USER=...
+DB_PASSWORD=...
+DB_NAME=...
+JWT_SECRET=...
+→ Informations sensibles
+→ Différentes en développement et en production
+
+CONFIGURATION DES ROUTES
+----------------------
+{
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "server.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/$1"
+        }
+    ]
+}
+→ Dirige les requêtes API vers le serveur
+→ Gère les autres URLs normalement
+
+11. FONCTIONNEMENT DES REQUÊTES API
+---------------------------------
+
+ANATOMIE D'UNE REQUÊTE
+--------------------
+fetch('/api/seances', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+})
+
+→ C'est comme envoyer une lettre :
+  - method: POST = Je veux ajouter quelque chose
+  - headers = Les informations sur l'enveloppe
+  - Authorization = Je montre mon badge
+  - body = Le contenu de la lettre
+
+→ JSON.stringify(data) :
+  - Transforme nos données JavaScript en texte
+  - Exemple :
+    {date: "2024-01-15"} devient "{"date":"2024-01-15"}"
+  - C'est comme traduire nos données en langage que le serveur comprend
+
+12. COMMENT FONCTIONNE LE CALENDRIER
+----------------------------------
+
+CRÉATION DES CASES
+----------------
+for (let i = 1; i <= lastDay.getDate(); i++) {
+    const dayElement = document.createElement('div');
+    dayElement.classList.add('calendar-day');
+    dayElement.dataset.date = `${year}-${month+1}-${i}`;
+}
+
+→ C'est comme construire un puzzle :
+  - Chaque case est une div
+  - On ajoute la date en attribut data-date
+  - Exemple : data-date="2024-1-15"
+
+AFFICHAGE DES SÉANCES
+-------------------
+if (this.workouts.has(dateKey)) {
+    this.workouts.get(dateKey).forEach(workout => {
+        const workoutElement = document.createElement('div');
+        workoutElement.classList.add('workout-slot');
+        workoutElement.style.backgroundColor = 
+            workout.type === 'sport' ? '#4CAF50' : '#2196F3';
+    });
+}
+
+→ Pour chaque jour :
+  1. On vérifie s'il y a des séances (workouts.has)
+  2. Pour chaque séance :
+     - On crée une petite barre (div)
+     - Sport = vert, Études = bleu
+     - On peut cliquer dessus pour voir les détails
+
+[Je continue avec plus de détails techniques...] 

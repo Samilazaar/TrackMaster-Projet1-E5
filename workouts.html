@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendrier - Workout History</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="auth.js"></script>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav>
+        <ul>
+            <li><a href="/">Accueil</a></li>
+            <li><a href="/workouts.html" class="active">Calendrier</a></li>
+            <li><a href="/conseils.html">Conseils</a></li>
+            <li><a href="#" onclick="logout()">Déconnexion</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <!-- Titre de la page -->
+        <h2>Workout History</h2>
+
+        <!-- Bouton Admin -->
+        <button onclick="openAdminWindow()" class="admin-button admin-only">
+            Page Admin
+        </button>
+
+        <!-- Section des statistiques -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-value" id="totalWorkouts">0</div>
+                <div class="stat-label">Total du mois</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value sport" id="sportCount">0</div>
+                <div class="stat-label">Séances de sport</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value travail" id="travailCount">0</div>
+                <div class="stat-label">Sessions de travail</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="mostActiveTime">-</div>
+                <div class="stat-label">Créneau favori</div>
+            </div>
+        </div>
+
+        <!-- Barre de recherche -->
+        <div class="search-container">
+            <input type="text" id="searchWorkouts" placeholder="Rechercher dans les séances...">
+            <div id="searchResults" class="search-results"></div>
+        </div>
+
+        <!-- Ajouter après la barre de recherche -->
+        <div class="add-workout-form">
+            <h3>Ajouter une séance</h3>
+            <form id="addWorkoutForm">
+                <div class="form-group">
+                    <label for="date">Date</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="creneau">Créneau</label>
+                    <select id="creneau" required>
+                        <option value="1">Matin</option>
+                        <option value="2">Midi</option>
+                        <option value="3">Soir</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="type">Type</label>
+                    <select id="type" required>
+                        <option value="sport">Sport</option>
+                        <option value="travail">Études/Travail</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="contenu">Description</label>
+                    <textarea id="contenu" required></textarea>
+                </div>
+                <button type="submit">Ajouter</button>
+            </form>
+        </div>
+
+        <!-- Contrôles du calendrier -->
+        <div class="calendar-controls">
+            <button id="prevMonth">&lt;</button>
+            <h3 id="currentMonth">Décembre 2024</h3>
+            <button id="nextMonth">&gt;</button>
+            <button class="export-button" onclick="calendar.exportWorkouts()">
+                Exporter en CSV
+            </button>
+        </div>
+
+        <!-- Légende du calendrier -->
+        <div class="calendar-legend">
+            <div class="legend-item">
+                <div class="legend-dot sport"></div>
+                <span>Sport</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot travail"></div>
+                <span>Études/Travail</span>
+            </div>
+        </div>
+
+        <!-- Grille du calendrier -->
+        <div class="calendar-grid">
+            <div class="calendar-header">
+                <span>Lun</span>
+                <span>Mar</span>
+                <span>Mer</span>
+                <span>Jeu</span>
+                <span>Ven</span>
+                <span>Sam</span>
+                <span>Dim</span>
+            </div>
+            <div id="calendarDays" class="calendar-days"></div>
+        </div>
+
+        <!-- Modal pour afficher les détails -->
+        <div id="workoutModal" class="workout-modal">
+            <div class="modal-content">
+                <button class="modal-close">&times;</button>
+                <h3 id="modalDate"></h3>
+                <div id="modalContent" class="workout-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
+    <script>
+        function openAdminWindow() {
+            const password = prompt("Entrez le mot de passe admin :");
+
+            // Hash du mot de passe avec MD5
+            const hashedPassword = md5(password);
+            // Le hash de "123" en MD5 est "202cb962ac59075b964b07152d234b70"
+            const correctHash = "202cb962ac59075b964b07152d234b70";
+
+            if (hashedPassword === correctHash) {
+                const adminWindow = window.open('admin.html', '_blank', 'width=600,height=800');
+                const checkClosed = setInterval(() => {
+                    if (adminWindow.closed) {
+                        clearInterval(checkClosed);
+                        window.location.reload();
+                    }
+                }, 1000);
+            } else {
+                alert("Mot de passe incorrect !");
+            }
+        }
+
+        function checkAdminAccess() {
+            const token = localStorage.getItem('userToken');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (!payload.isAdmin) {
+                    // Cacher les éléments admin
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        el.style.display = 'none';
+                    });
+                }
+            }
+        }
+
+        // Définir l'URL de base de l'API
+        const API_URL = 'http://localhost:3000';
+
+        // Fonction pour charger les séances
+        async function loadWorkouts() {
+            try {
+                const token = Auth.getToken();
+                if (!token) {
+                    throw new Error('Non authentifié');
+                }
+
+                console.log('Chargement des séances...');
+                const response = await fetch(`${API_URL}/api/seances`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+
+                console.log('Status de la réponse:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+
+                const workouts = await response.json();
+                console.log('Séances reçues:', workouts);
+
+                if (!Array.isArray(workouts)) {
+                    throw new Error('Format de données invalide');
+                }
+
+                // Mettre à jour le calendrier
+                calendar.updateCalendar(workouts);
+
+                // Mettre à jour les statistiques
+                updateStats(workouts);
+            } catch (error) {
+                console.error('Erreur de chargement:', error);
+                alert('Erreur lors du chargement des séances');
+            }
+        }
+
+        // Gestionnaire du formulaire d'ajout
+        document.getElementById('addWorkoutForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                date_seance: document.getElementById('date').value,
+                creneau: document.getElementById('creneau').value,
+                type: document.getElementById('type').value,
+                contenu: document.getElementById('contenu').value
+            };
+
+            try {
+                const token = Auth.getToken();
+                if (!token) {
+                    throw new Error('Non authentifié');
+                }
+
+                const response = await fetch(`${API_URL}/api/seances`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Erreur serveur');
+                }
+
+                // Recharger les séances
+                await loadWorkouts();
+                alert('Séance ajoutée avec succès !');
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert(error.message);
+            }
+        });
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!Auth.checkAuth()) return;
+            Auth.updateNavigation();
+            checkAdminAccess();
+            await loadWorkouts();
+        });
+    </script>
+</body>
+
+</html>

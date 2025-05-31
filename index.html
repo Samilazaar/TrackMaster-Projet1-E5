@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accueil - Workout History</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="auth.js"></script>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav>
+        <ul>
+            <!-- La navigation sera mise à jour par auth.js -->
+        </ul>
+    </nav>
+
+    <main class="home-content">
+        <h1>Workout History</h1>
+        <p class="intro">Suivez vos progrès sportifs et académiques</p>
+
+        <div class="cta-buttons" id="ctaButtons">
+            <!-- Les boutons seront mis à jour dynamiquement -->
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            Auth.updateNavigation();
+
+            const ctaButtons = document.getElementById('ctaButtons');
+            if (Auth.isAuthenticated()) {
+                ctaButtons.innerHTML = `
+                    <a href="workouts.html" class="cta-button">Mes Séances</a>
+                    <a href="conseils.html" class="cta-button secondary">Voir les Conseils</a>
+                `;
+            } else {
+                ctaButtons.innerHTML = `
+                    <a href="register.html" class="cta-button">Commencer</a>
+                    <a href="login.html" class="cta-button secondary">Se connecter</a>
+                `;
+            }
+        });
+    </script>
+</body>
+
+</html>

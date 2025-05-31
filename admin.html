@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Workout/Work Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="admin-container">
+        <h1>Ajouter une séance</h1>
+        <form id="workoutForm">
+            <div class="form-group">
+                <label for="date_seance">Date :</label>
+                <input type="date" id="date_seance" required min="2024-12-01">
+            </div>
+            <div class="form-group">
+                <label for="creneau">Créneau :</label>
+                <select id="creneau" required>
+                    <option value="1">Matin</option>
+                    <option value="2">Midi</option>
+                    <option value="3">Soir</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="type">Type de séance :</label>
+                <select id="type" name="type" required>
+                    <option value="sport">Sport</option>
+                    <option value="travail">Travail</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="contenu">Description :</label>
+                <textarea id="contenu" required></textarea>
+            </div>
+            <button type="submit">Ajouter la séance</button>
+        </form>
+        <div id="message"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
+    <script>
+        // Définir la date par défaut à aujourd'hui en 2025
+        const today = new Date();
+        today.setFullYear(2025);
+        document.getElementById('date_seance').value = today.toISOString().split('T')[0];
+
+        // Gestion du formulaire
+        document.getElementById('workoutForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const typeSelect = document.getElementById('type');
+            const formData = {
+                date_seance: document.getElementById('date_seance').value,
+                creneau: document.getElementById('creneau').value,
+                type: typeSelect.value,
+                contenu: document.getElementById('contenu').value
+            };
+
+            // Vérification avant envoi
+            console.log('Type sélectionné:', typeSelect.value);
+            console.log('Données à envoyer:', formData);
+
+            try {
+                const response = await fetch('http://localhost:3000/api/seances', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                console.log('Réponse du serveur:', data);
+
+                if (data.success) {
+                    // Afficher le succès
+                    document.getElementById('message').innerHTML =
+                        '<div class="success">Séance ajoutée avec succès!</div>';
+
+                    // Réinitialiser le formulaire
+                    e.target.reset();
+                    document.getElementById('date_seance').value = today.toISOString().split('T')[0];
+
+                    // Fermer la fenêtre après 2 secondes
+                    setTimeout(() => {
+                        window.close();
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Erreur lors de l\'ajout');
+                }
+            } catch (error) {
+                document.getElementById('message').innerHTML =
+                    `<div class="error">Erreur: ${error.message}</div>`;
+            }
+        });
+
+        // Au chargement de la page
+        window.onload = function () {
+            const password = prompt("Entrez le mot de passe admin :");
+
+            // Hash du mot de passe avec MD5
+            const hashedPassword = md5(password);
+            const correctHash = "202cb962ac59075b964b07152d234b70";
+
+            if (hashedPassword !== correctHash) {
+                alert("Accès non autorisé !");
+                window.close();
+                return;
+            }
+        }
+    </script>
+
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About</a></li>
+            <li><a href="workouts.html">Workouts</a></li>
+            <li><a href="conseils.html">Conseils</a></li>
+        </ul>
+    </nav>
+</body>
+
+</html>

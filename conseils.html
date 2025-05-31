@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conseils - Workout History</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About</a></li>
+            <li><a href="workouts.html">Workouts</a></li>
+            <li><a href="conseils.html" class="active">Conseils</a></li>
+        </ul>
+    </nav>
+
+    <main class="conseils-container">
+        <h1>Conseils Automatiques</h1>
+        <p class="conseil-description">Conseils quotidiens provenant de sources fiables et vérifiées</p>
+
+        <!-- Div où les conseils seront injectés dynamiquement -->
+        <div id="conseilsList" class="conseils-list">
+            <!-- Les conseils seront ajoutés ici par JavaScript -->
+        </div>
+    </main>
+
+    <script>
+        // Fonction principale qui charge les conseils depuis l'API
+        async function loadConseils() {
+            try {
+                console.log('Chargement des conseils...');
+                // Appel à l'API en utilisant une URL relative
+                const response = await fetch('/api/conseils', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                // Vérification si la requête a réussi
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Conversion de la réponse en JSON
+                const conseils = await response.json();
+                console.log('Conseils reçus:', conseils);
+
+                const conseilsList = document.getElementById('conseilsList');
+
+                // Si aucun conseil n'est disponible
+                if (!conseils || conseils.length === 0) {
+                    conseilsList.innerHTML = '<p>Aucun conseil disponible pour le moment.</p>';
+                    return;
+                }
+
+                // Création des cartes de conseils avec les données reçues
+                conseilsList.innerHTML = conseils.map(conseil => `
+                    <article class="conseil-card ${conseil.type}">
+                        <div class="conseil-header">
+                            <span class="date">${conseil.date || 'Date non disponible'}</span>
+                            <!-- Emoji différent selon le type de conseil -->
+                            <span class="type">${conseil.type === 'sport' ? '🏃‍♂️ Sport' : '📚 Travail'}</span>
+                        </div>
+                        <h3>${conseil.titre || 'Sans titre'}</h3>
+                        <p>${conseil.contenu || 'Pas de contenu disponible'}</p>
+                        <div class="conseil-footer">
+                            <small>Source: ${conseil.source ?
+                        `<a href="${conseil.source}" target="_blank">${conseil.source}</a>`
+                        : 'Source non disponible'}</small>
+                        </div>
+                    </article>
+                `).join('');
+            } catch (error) {
+                // Gestion des erreurs avec message explicite
+                console.error('Erreur détaillée:', error);
+                const errorMessage = `Erreur: ${error.message}. Vérifiez que le serveur est bien lancé sur le port 3001.`;
+                document.getElementById('conseilsList').innerHTML =
+                    `<p class="error-message">${errorMessage}</p>`;
+            }
+        }
+
+        // Chargement des conseils quand la page est prête
+        document.addEventListener('DOMContentLoaded', loadConseils);
+    </script>
+</body>
+
+</html>

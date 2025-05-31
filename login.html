@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Connexion - Workout History</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="auth.js"></script>
+</head>
+<body>
+    <nav>
+        <ul>
+            <!-- La navigation sera mise à jour par auth.js -->
+        </ul>
+    </nav>
+
+    <div class="auth-container">
+        <h2>Connexion</h2>
+        <form id="loginForm" class="auth-form">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">Se connecter</button>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+        </form>
+        <p>Pas encore de compte ? <a href="register.html">S'inscrire</a></p>
+    </div>
+
+    <script>
+        // Fonction pour afficher les erreurs
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Fonction pour cacher les erreurs
+        function hideError() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                console.log('Envoi de la requête avec:', { email, password });
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                console.log('Status de la réponse:', response.status);
+                console.log('Headers de la réponse:', response.headers);
+                
+                const data = await response.json();
+                console.log('Données reçues:', data);
+                
+                if (!response.ok) {
+                    throw new Error(data.error || `Erreur ${response.status}`);
+                }
+
+                if (data.token) {
+                    console.log('Token reçu, sauvegarde...');
+                    localStorage.setItem('userToken', data.token);
+                    console.log('Redirection...');
+                    window.location.href = 'workouts.html';
+                } else {
+                    throw new Error('Token non reçu');
+                }
+            } catch (error) {
+                console.error('Erreur de connexion:', error);
+                showError(error.message || 'Erreur de connexion au serveur');
+            }
+        });
+
+        // Vérifier si déjà connecté au chargement de la page
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Vérification de l\'authentification...');
+            if (Auth.isAuthenticated()) {
+                console.log('Déjà connecté, redirection...');
+                window.location.href = 'workouts.html';
+            }
+            Auth.updateNavigation();
+        });
+    </script>
+</body>
+</html> 
