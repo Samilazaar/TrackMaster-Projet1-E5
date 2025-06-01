@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <title>Connexion - Workout History</title>
     <link rel="stylesheet" href="style.css">
     <script src="auth.js"></script>
 </head>
+
 <body>
     <nav>
         <ul>
@@ -48,53 +50,28 @@
             e.preventDefault();
             hideError();
 
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
             try {
-                console.log('Envoi de la requête avec:', { email, password });
-                const response = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                console.log('Status de la réponse:', response.status);
-                console.log('Headers de la réponse:', response.headers);
-                
-                const data = await response.json();
-                console.log('Données reçues:', data);
-                
-                if (!response.ok) {
-                    throw new Error(data.error || `Erreur ${response.status}`);
-                }
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
 
-                if (data.token) {
-                    console.log('Token reçu, sauvegarde...');
-                    localStorage.setItem('userToken', data.token);
-                    console.log('Redirection...');
-                    window.location.href = 'workouts.html';
-                } else {
-                    throw new Error('Token non reçu');
-                }
-            } catch (error) {
-                console.error('Erreur de connexion:', error);
-                showError(error.message || 'Erreur de connexion au serveur');
-            }
-        });
+                // Utiliser la méthode login de Auth
+                await Auth.login(email, password);
 
-        // Vérifier si déjà connecté au chargement de la page
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Vérification de l\'authentification...');
-            if (Auth.isAuthenticated()) {
-                console.log('Déjà connecté, redirection...');
+                // Si la connexion réussit, rediriger vers workouts.html
                 window.location.href = 'workouts.html';
+            } catch (error) {
+                showError(error.message || 'Erreur de connexion');
             }
-            Auth.updateNavigation();
         });
+
+        // Rediriger si déjà connecté
+        if (Auth.isAuthenticated()) {
+            window.location.href = 'workouts.html';
+        }
+
+        // Mettre à jour la navigation
+        Auth.updateNavigation();
     </script>
 </body>
-</html> 
+
+</html>

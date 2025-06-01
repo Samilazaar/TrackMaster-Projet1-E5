@@ -214,15 +214,18 @@ class Calendar {
     }
 
     generateDayHTML(date, dateKey, isCurrentMonth) {
+        // Ajuster la date pour éviter le décalage horaire
+        const adjustedDate = new Date(date);
+        adjustedDate.setHours(12); // Fixer à midi pour éviter les problèmes de timezone
+
         const dayWorkouts = this.workouts.get(dateKey) || [];
 
         return `
             <div class="calendar-day ${isCurrentMonth ? '' : 'other-month'}">
-                <div class="day-number">${date.getDate()}</div>
+                <div class="day-number">${adjustedDate.getDate()}</div>
                 <div class="workout-slots">
                     ${[1, 2, 3].map(creneau => {
             const workout = dayWorkouts.find(w => parseInt(w.creneau) === creneau);
-            console.log('Workout trouvé:', workout); // Debug
             return `
                             <div class="workout-slot ${workout ? `has-workout ${workout.type}` : ''}"
                                  data-date="${dateKey}"
@@ -411,31 +414,26 @@ class Calendar {
             return;
         }
 
-        console.log('Mise à jour du calendrier avec:', workouts);
-
         // Réinitialiser la Map
         this.workouts = new Map();
 
         // Grouper les séances par date
         workouts.forEach(workout => {
             // S'assurer que la date est au bon format YYYY-MM-DD
-            const dateKey = workout.date_seance.split('T')[0]; // Enlever la partie temps si elle existe
+            const date = new Date(workout.date_seance);
+            date.setHours(12); // Fixer à midi pour éviter les problèmes de timezone
+            const dateKey = date.toISOString().split('T')[0];
 
             if (!this.workouts.has(dateKey)) {
                 this.workouts.set(dateKey, []);
             }
 
-            // S'assurer que le type et le créneau sont corrects
-            const formattedWorkout = {
+            this.workouts.get(dateKey).push({
                 ...workout,
-                type: workout.type.toLowerCase(), // Normaliser le type en minuscules
-                creneau: parseInt(workout.creneau) // S'assurer que c'est un nombre
-            };
-
-            this.workouts.get(dateKey).push(formattedWorkout);
+                date_seance: dateKey // Utiliser la date ajustée
+            });
         });
 
-        // Mettre à jour l'affichage
         this.renderCalendar();
     }
 }

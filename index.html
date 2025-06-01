@@ -31,17 +31,11 @@
             Auth.updateNavigation();
 
             const ctaButtons = document.getElementById('ctaButtons');
-            if (Auth.isAuthenticated()) {
-                ctaButtons.innerHTML = `
-                    <a href="workouts.html" class="cta-button">Mes Séances</a>
-                    <a href="conseils.html" class="cta-button secondary">Voir les Conseils</a>
-                `;
-            } else {
-                ctaButtons.innerHTML = `
-                    <a href="register.html" class="cta-button">Commencer</a>
-                    <a href="login.html" class="cta-button secondary">Se connecter</a>
-                `;
-            }
+            // Par défaut, on montre les boutons de connexion/inscription
+            ctaButtons.innerHTML = `
+                <a href="register.html" class="cta-button">Commencer</a>
+                <a href="login.html" class="cta-button secondary">Se connecter</a>
+            `;
         });
     </script>
 </body>

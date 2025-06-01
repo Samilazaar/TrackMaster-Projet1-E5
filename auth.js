@@ -1,7 +1,21 @@
 // Gestion de l'authentification
 class Auth {
     static isAuthenticated() {
-        return localStorage.getItem('userToken') !== null;
+        const token = localStorage.getItem('userToken');
+        if (!token) return false;
+
+        try {
+            // Vérifier si le token est valide
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (!payload) {
+                localStorage.removeItem('userToken');
+                return false;
+            }
+            return true;
+        } catch (e) {
+            localStorage.removeItem('userToken');
+            return false;
+        }
     }
 
     static getToken() {
@@ -15,23 +29,20 @@ class Auth {
 
     static updateNavigation() {
         const nav = document.querySelector('nav ul');
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-        
+        if (!nav) return;
+
         if (this.isAuthenticated()) {
             nav.innerHTML = `
-                <li><a href="index.html" ${currentPage === 'index.html' ? 'class="active"' : ''}>Accueil</a></li>
-                <li><a href="workouts.html" ${currentPage === 'workouts.html' ? 'class="active"' : ''}>Mes Séances</a></li>
-                <li><a href="conseils.html" ${currentPage === 'conseils.html' ? 'class="active"' : ''}>Conseils</a></li>
-                <li><a href="about.html" ${currentPage === 'about.html' ? 'class="active"' : ''}>À propos</a></li>
-                <li><a href="#" onclick="Auth.logout(); return false;">Déconnexion</a></li>
+                <li><a href="/">Accueil</a></li>
+                <li><a href="/workouts.html">Calendrier</a></li>
+                <li><a href="/conseils.html">Conseils</a></li>
+                <li><a href="#" onclick="Auth.logout()">Déconnexion</a></li>
             `;
         } else {
             nav.innerHTML = `
-                <li><a href="index.html" ${currentPage === 'index.html' ? 'class="active"' : ''}>Accueil</a></li>
-                <li><a href="about.html" ${currentPage === 'about.html' ? 'class="active"' : ''}>À propos</a></li>
-                <li><a href="conseils.html" ${currentPage === 'conseils.html' ? 'class="active"' : ''}>Conseils</a></li>
-                <li><a href="login.html" ${currentPage === 'login.html' ? 'class="active"' : ''}>Connexion</a></li>
-                <li><a href="register.html" ${currentPage === 'register.html' ? 'class="active"' : ''}>Inscription</a></li>
+                <li><a href="/">Accueil</a></li>
+                <li><a href="/login.html">Connexion</a></li>
+                <li><a href="/register.html">Inscription</a></li>
             `;
         }
     }
@@ -71,12 +82,29 @@ class Auth {
     }
 
     static async login(email, password) {
-        const response = await fetch(`${window.location.origin}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password })
-        });
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Erreur de connexion');
+            }
+
+            if (!data.token) {
+                throw new Error('Token non reçu');
+            }
+
+            localStorage.setItem('userToken', data.token);
+            return data;
+        } catch (error) {
+            throw new Error(error.message || 'Erreur lors de la connexion');
+        }
     }
 } 
